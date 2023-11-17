@@ -22,6 +22,8 @@ import com.intel.realsense.librealsense.Pipeline;
 import com.intel.realsense.librealsense.PipelineProfile;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.StreamType;
+import com.intel.realsense.librealsense.Pointcloud;
+import com.intel.realsense.librealsense.Config;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "librs capture example";

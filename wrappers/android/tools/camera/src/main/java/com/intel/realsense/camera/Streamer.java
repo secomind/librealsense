@@ -5,11 +5,14 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.util.Log;
 
+import com.google.gson.Gson;
 import com.intel.realsense.librealsense.CameraInfo;
 import com.intel.realsense.librealsense.Config;
+import com.intel.realsense.librealsense.DepthFrame;
 import com.intel.realsense.librealsense.Device;
 import com.intel.realsense.librealsense.DeviceList;
 import com.intel.realsense.librealsense.Extension;
+import com.intel.realsense.librealsense.Frame;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.MotionStreamProfile;
 import com.intel.realsense.librealsense.Option;
@@ -19,8 +22,13 @@ import com.intel.realsense.librealsense.ProductLine;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.Sensor;
 import com.intel.realsense.librealsense.StreamProfile;
+import com.intel.realsense.librealsense.StreamType;
 import com.intel.realsense.librealsense.VideoStreamProfile;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -42,6 +50,7 @@ public class Streamer {
     private final Listener mListener;
 
     private Pipeline mPipeline;
+    private int frame_counter = 0;
 
     public Streamer(Context context, boolean loadConfig, Listener listener){
         mContext = context;
@@ -176,7 +185,12 @@ public class Streamer {
             Log.d(TAG, "try start streaming");
             configAndStart();
             int firstFrameTimeOut = getFirstFrameTimeout();
-            try(FrameSet frames = mPipeline.waitForFrames(firstFrameTimeOut)){} // w/a for l500
+            try(FrameSet frames = mPipeline.waitForFrames(firstFrameTimeOut)){
+                try (Frame f = frames.first(StreamType.DEPTH)) {
+                    DepthFrame depth = f.as(Extension.DEPTH_FRAME);
+                    final float deptValue = depth.getDistance(depth.getWidth()/2, depth.getHeight()/2);
+                }
+            } // w/a for l500
             mIsStreaming = true;
             mHandler.post(mStreaming);
             Log.d(TAG, "streaming started successfully");

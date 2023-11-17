@@ -19,14 +19,22 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.intel.realsense.librealsense.Config;
+import com.intel.realsense.librealsense.DepthFrame;
 import com.intel.realsense.librealsense.Device;
 import com.intel.realsense.librealsense.DeviceList;
+import com.intel.realsense.librealsense.Extension;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.GLRsSurfaceView;
 import com.intel.realsense.librealsense.Option;
+import com.intel.realsense.librealsense.Pointcloud;
+import com.intel.realsense.librealsense.Points;
 import com.intel.realsense.librealsense.RsContext;
 import com.intel.realsense.librealsense.Sensor;
+import com.intel.realsense.librealsense.StreamType;
+import com.intel.realsense.librealsense.VideoFrame;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,6 +53,8 @@ public class PreviewActivity extends AppCompatActivity {
     private Map<Integer, TextView> mLabels;
 
     private Streamer mStreamer;
+
+    private Streamer secoStreamer;
     private StreamingStats mStreamingStats;
 
     private FwLogsThread mFwLogsThread;
@@ -54,6 +64,8 @@ public class PreviewActivity extends AppCompatActivity {
     private boolean mShow3D = false;
 
     boolean keepalive = true;
+
+    private int frameCount = 0;
 
     public synchronized void updateStats(){
         if(statsToggle){
@@ -125,14 +137,47 @@ public class PreviewActivity extends AppCompatActivity {
         mStartRecordFab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(PreviewActivity.this, RecordingActivity.class);
-                startActivity(intent);
-                finish();
+                //Intent intent = new Intent(PreviewActivity.this, RecordingActivity.class);
+                //startActivity(intent);
+                secoStreamer =  new Streamer(getApplicationContext(),true, new Streamer.Listener() {
+                    @Override
+                    public void config(Config config) {
+                    }
+
+                    @Override
+                    public void onFrameset(FrameSet frameSet) {
+                    DepthFrame d = frameSet.first(StreamType.DEPTH).as(Extension.DEPTH_FRAME);
+                    assert d.is(Extension.DEPTH_FRAME);
+                    Pointcloud pc = new Pointcloud();
+                    Points points = pc.process(d).as(Extension.POINTS);
+
+                    Log.e("F evaluate expr","");
+
+                    Points p = points.as(Extension.POINTS);
+
+                    Path b = Paths.get(getExternalFilesDir(null).getAbsolutePath() ,"file"+ frameCount + ".ply");
+
+                    frameCount += 90;
+
+                    VideoFrame v = frameSet.first(StreamType.COLOR).as(Extension.VIDEO_FRAME);
+
+                    p.exportToPly(b.toString(), v);
+                    throw new RuntimeException();
+
+
+                    }
+                });
+                try {
+                    secoStreamer.start();
+                } catch (Exception e) {
+                    finish();
+                }
             }
         });
         mPlaybackButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                Log.d(TAG, "Click on playback activity");
                 Intent intent = new Intent(PreviewActivity.this, PlaybackActivity.class);
                 startActivity(intent);
             }
