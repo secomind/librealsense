@@ -1,0 +1,58 @@
+package com.intel.realsense.camera.Models;
+
+import android.util.Log;
+
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
+
+import com.intel.realsense.camera.ExportCallback;
+import com.intel.realsense.camera.FrameExporter;
+import com.intel.realsense.camera.Models.State.ExportState;
+import com.intel.realsense.librealsense.FrameSet;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class ExportModel extends ViewModel {
+    private static final int INTERVAL_MS = 5000;
+
+    private long lastFrameTime = 0;
+    private int capturedFrames = 0;
+    private final FrameExporter exporter;
+
+    private final MutableLiveData<ExportState> uiState = new MutableLiveData<>(new ExportState(0));
+
+    private final ExecutorService executorService = Executors.newFixedThreadPool(4);
+
+
+    public LiveData<ExportState> getUiState() {
+        return uiState;
+    }
+
+    public ExportModel() {
+        this.lastFrameTime = System.currentTimeMillis();
+        this.exporter = new FrameExporter(this.executorService);
+    }
+
+    public void nextFrame(FrameSet frameSet, Path basePath) {
+        long time = System.currentTimeMillis();
+        long diff = time - lastFrameTime;
+
+        if (diff < INTERVAL_MS || capturedFrames >= 4) {
+            return;
+        }
+        exporter.exportInBackground(basePath, frameSet, capturedFrames, () -> {
+            Log.d("Export", String.format(Locale.ENGLISH, "Frame %d exported", capturedFrames));
+
+            Integer current = uiState.getValue().getExported();
+            uiState.setValue(new ExportState(current + 1));
+        });
+        capturedFrames += 1;
+        lastFrameTime = time;
+
+    }
+}

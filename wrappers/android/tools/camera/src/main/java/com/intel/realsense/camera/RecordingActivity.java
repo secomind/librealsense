@@ -1,24 +1,41 @@
 package com.intel.realsense.camera;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.os.AsyncTask;
 import android.os.Bundle;
+
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.ViewModelProvider;
+
+import android.os.Environment;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.TextView;
+import android.widget.Toast;
 
+import com.intel.realsense.camera.Models.State.ExportState;
 import com.intel.realsense.librealsense.Config;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.GLRsSurfaceView;
 
 import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.Date;
+import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class RecordingActivity extends AppCompatActivity {
     private static final String TAG = "librs camera rec";
@@ -29,6 +46,15 @@ public class RecordingActivity extends AppCompatActivity {
     private boolean mPermissionsGranted = false;
 
     private FloatingActionButton mStopRecordFab;
+    private Path basePath;
+    //private ExportModel exportModel;
+    private final ExecutorService executorService = Executors.newFixedThreadPool(4);
+    private FrameExporter exporter;
+    private static final int INTERVAL_MS = 5000;
+
+    private long lastFrameTime = 0;
+    private int capturedFrames = 0;
+    private int exported = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +70,20 @@ public class RecordingActivity extends AppCompatActivity {
         }
 
         mPermissionsGranted = true;
+
+        // this.exportModel = new ViewModelProvider(this).get(ExportModel.class);
+        String exportDate = Instant.now().toString();
+
+        this.basePath = Paths.get(getExternalFilesDir(null).getAbsolutePath(), exportDate);
+        this.exporter = new FrameExporter(this.executorService);
+        // exportModel.getUiState().observe(this, uiState -> {
+        //    Integer exported = uiState.getExported();
+        //   TextView textView = (TextView) findViewById(R.id.textView);
+        //   textView.setText(String.format(Locale.ENGLISH, "Recorded measure %d/4", exported));
+        //   if (exported == 4) {
+        //      finish();
+        //  }
+        // });
     }
 
     @Override
@@ -63,7 +103,7 @@ public class RecordingActivity extends AppCompatActivity {
         // handling device orientation changes to avoid interruption during recording
 
         // cleanup previous surface
-        if(mGLSurfaceView != null) {
+        if (mGLSurfaceView != null) {
             mGLSurfaceView.clear();
             mGLSurfaceView.close();
         }
@@ -93,16 +133,17 @@ public class RecordingActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        if(mPermissionsGranted){
-            mStreamer = new Streamer(this,true, new Streamer.Listener() {
+        if (mPermissionsGranted) {
+            mStreamer = new Streamer(this, true, new Streamer.Listener() {
                 @Override
                 public void config(Config config) {
-                    config.enableRecordToFile(getFilePath());
+                    // config.enableRecordToFile(getFilePath());
                 }
 
                 @Override
                 public void onFrameset(FrameSet frameSet) {
                     mGLSurfaceView.upload(frameSet);
+                    nextFrame(frameSet);
                 }
             });
             try {
@@ -114,26 +155,39 @@ public class RecordingActivity extends AppCompatActivity {
         }
     }
 
+    public void nextFrame(FrameSet frameSet) {
+        long time = System.currentTimeMillis();
+        long diff = time - lastFrameTime;
+
+        if (diff < INTERVAL_MS || capturedFrames >= 4) {
+            return;
+        }
+        exporter.exportInBackground(this.basePath, frameSet.clone(), capturedFrames, () -> {
+            Log.d("Export", String.format(Locale.ENGLISH, "Frame %d exported", capturedFrames));
+
+            exported += 1;
+
+            if (exported == 4) {
+
+
+                finish();
+            }
+        });
+
+        capturedFrames += 1;
+        lastFrameTime = time;
+
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
 
-        if(mStreamer != null)
+        if (mStreamer != null)
             mStreamer.stop();
-        if(mGLSurfaceView != null)
+        if (mGLSurfaceView != null)
             mGLSurfaceView.clear();
     }
 
-    private String getFilePath(){
-        File rsFolder = new File(getExternalFilesDir(null).getAbsolutePath() +
-                File.separator + getString(R.string.realsense_folder));
-        rsFolder.mkdir();
-        File folder = new File(getExternalFilesDir(null).getAbsolutePath() +
-                File.separator + getString(R.string.realsense_folder) + File.separator + "video");
-        folder.mkdir();
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss");
-        String currentDateAndTime = sdf.format(new Date());
-        File file = new File(folder, currentDateAndTime + ".bag");
-        return file.getAbsolutePath();
-    }
+
 }
