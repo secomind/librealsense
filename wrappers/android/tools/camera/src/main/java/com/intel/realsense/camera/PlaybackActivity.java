@@ -16,12 +16,20 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.intel.realsense.librealsense.Config;
+import com.intel.realsense.librealsense.Extension;
+import com.intel.realsense.librealsense.Frame;
+import com.intel.realsense.librealsense.FrameCallback;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.GLRsSurfaceView;
+import com.intel.realsense.librealsense.Points;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import com.google.gson.Gson;
 
 public class PlaybackActivity extends AppCompatActivity {
     private static final String TAG = "librs camera pb";
@@ -37,6 +45,8 @@ public class PlaybackActivity extends AppCompatActivity {
 
     private boolean mShow3D = false;
     private TextView m3dButton;
+    private final Context context = getApplicationContext();
+    private int frame_counter = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -111,6 +121,20 @@ public class PlaybackActivity extends AppCompatActivity {
                 public void onFrameset(FrameSet frameSet) {
                     mGLSurfaceView.showPointcloud(mShow3D);
                     mGLSurfaceView.upload(frameSet);
+
+                    frameSet.foreach(new FrameCallback() {
+                        @Override
+                        public void onFrame(Frame f) {
+                            if(f.is(Extension.POINTS)) {
+                                Points p = f.as(Extension.POINTS);
+
+                                float[] points = p.getVertices();
+                                System.out.println(points[0]);
+                                getJson(points);
+                            }
+                        }
+                    });
+
                     Map<Integer, Pair<String, Rect>> rects = mGLSurfaceView.getRectangles();
                     printLables(rects);
                 }
@@ -122,6 +146,25 @@ public class PlaybackActivity extends AppCompatActivity {
                 finish();
             }
         }
+    }
+
+    public void getJson(float[] points) {
+        Gson gson = new Gson();
+        String json = gson.toJson(points);
+        File file = new File(getExternalFilesDir(null).getAbsolutePath() +
+                File.separator + getString(R.string.realsense_folder) + File.separator + "video", "points_frame_" + frame_counter + ".json");
+        try {
+            FileWriter fileWriter = new FileWriter(file);
+            BufferedWriter bufferedWriter = new BufferedWriter(fileWriter);
+            bufferedWriter.write(json);
+            bufferedWriter.close();
+        } catch (IOException e) {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+        frame_counter++;
+
+        return;
     }
 
     @Override

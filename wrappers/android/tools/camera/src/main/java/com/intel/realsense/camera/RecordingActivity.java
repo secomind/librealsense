@@ -9,14 +9,32 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 
+import com.google.gson.Gson;
 import com.intel.realsense.librealsense.Config;
+import com.intel.realsense.librealsense.DepthFrame;
+import com.intel.realsense.librealsense.Extension;
+import com.intel.realsense.librealsense.Frame;
+import com.intel.realsense.librealsense.FrameCallback;
 import com.intel.realsense.librealsense.FrameSet;
 import com.intel.realsense.librealsense.GLRsSurfaceView;
+import com.intel.realsense.librealsense.Pointcloud;
+import com.intel.realsense.librealsense.Points;
+import com.intel.realsense.librealsense.StreamType;
+import com.intel.realsense.librealsense.VideoFrame;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -29,6 +47,7 @@ public class RecordingActivity extends AppCompatActivity {
     private boolean mPermissionsGranted = false;
 
     private FloatingActionButton mStopRecordFab;
+    private int frame_counter = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -102,7 +121,47 @@ public class RecordingActivity extends AppCompatActivity {
 
                 @Override
                 public void onFrameset(FrameSet frameSet) {
+                    /*DepthFrame d = frameSet.first(StreamType.DEPTH).as(Extension.DEPTH_FRAME);
+                    assert d.is(Extension.DEPTH_FRAME);
+                    Pointcloud pc = new Pointcloud();
+                    Points points = pc.process(d).as(Extension.POINTS);
+
+                    Log.e("F evaluate expr","");
+
+                    Points p = points.as(Extension.POINTS);
+
+                    Path b = Paths.get(getExternalFilesDir(null).getAbsolutePath() ,"file"+ frame_counter + ".ply");
+
+                    VideoFrame v = frameSet.first(StreamType.COLOR).as(Extension.VIDEO_FRAME);
+
+                    p.exportToPly(b.toString(), v);
+
+                    frame_counter += 1;*/
+
                     mGLSurfaceView.upload(frameSet);
+
+                    /*new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            DepthFrame d = frameSet.first(StreamType.DEPTH).as(Extension.DEPTH_FRAME);
+                            assert d.is(Extension.DEPTH_FRAME);
+                            Pointcloud pc = new Pointcloud();
+                            Points points = pc.process(d).as(Extension.POINTS);
+
+                            Log.e("F evaluate expr","");
+
+                            Points p = points.as(Extension.POINTS);
+
+                            Path b = Paths.get(getExternalFilesDir(null).getAbsolutePath() ,"file"+ frame_counter + ".ply");
+
+                            VideoFrame v = frameSet.first(StreamType.COLOR).as(Extension.VIDEO_FRAME);
+
+                            p.exportToPly(b.toString(), v);
+
+                            frame_counter += 1;
+                        }
+                    }).start();*/
+
                 }
             });
             try {
