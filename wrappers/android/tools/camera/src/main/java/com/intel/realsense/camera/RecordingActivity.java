@@ -50,11 +50,14 @@ public class RecordingActivity extends AppCompatActivity {
     //private ExportModel exportModel;
     private final ExecutorService executorService = Executors.newFixedThreadPool(4);
     private FrameExporter exporter;
-    private static final int INTERVAL_MS = 5000;
+    private static final int INTERVAL_MS = 10000;
 
     private long lastFrameTime = 0;
     private int capturedFrames = 0;
     private int exported = 0;
+    private String exportDate;
+
+    long absolute_time_start;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,10 +75,11 @@ public class RecordingActivity extends AppCompatActivity {
         mPermissionsGranted = true;
 
         // this.exportModel = new ViewModelProvider(this).get(ExportModel.class);
-        String exportDate = Instant.now().toString();
+        this.exportDate = Instant.now().toString();
 
-        this.basePath = Paths.get(getExternalFilesDir(null).getAbsolutePath(), exportDate);
+        this.basePath = Paths.get(getExternalFilesDir(null).getAbsolutePath(), this.exportDate);
         this.exporter = new FrameExporter(this.executorService);
+        this.absolute_time_start = System.currentTimeMillis();
         // exportModel.getUiState().observe(this, uiState -> {
         //    Integer exported = uiState.getExported();
         //   TextView textView = (TextView) findViewById(R.id.textView);
@@ -143,7 +147,7 @@ public class RecordingActivity extends AppCompatActivity {
                 @Override
                 public void onFrameset(FrameSet frameSet) {
                     mGLSurfaceView.upload(frameSet);
-                    nextFrame(frameSet);
+                    nextFrame(frameSet, exportDate);
                 }
             });
             try {
@@ -155,24 +159,27 @@ public class RecordingActivity extends AppCompatActivity {
         }
     }
 
-    public void nextFrame(FrameSet frameSet) {
+    public void nextFrame(FrameSet frameSet, final String exportDate) {
         long time = System.currentTimeMillis();
         long diff = time - lastFrameTime;
-
-        if (diff < INTERVAL_MS || capturedFrames >= 4) {
+        // || capturedFrames >= 4
+        if (diff < INTERVAL_MS) {
             return;
         }
+        long absolute_time = System.currentTimeMillis() - absolute_time_start;
+        Log.d("Export", String.format(Locale.ENGLISH, "At instant %d", absolute_time));
+        Log.d("Export", String.format(Locale.ENGLISH, "Exporting frame %d ...", capturedFrames));
         exporter.exportInBackground(this.basePath, frameSet.clone(), capturedFrames, () -> {
             Log.d("Export", String.format(Locale.ENGLISH, "Frame %d exported", capturedFrames));
 
             exported += 1;
 
-            if (exported == 4) {
+            if (exported == 1) {
 
 
                 finish();
             }
-        });
+        }, exportDate);
 
         capturedFrames += 1;
         lastFrameTime = time;

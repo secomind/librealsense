@@ -30,20 +30,19 @@ import java.util.concurrent.Executor;
 public class FrameExporter {
     private final Executor executor;
 
-
     public FrameExporter(Executor executor) {
         this.executor = executor;
     }
 
-    public void exportInBackground(Path basePath, FrameSet frameSet, int frameNumber, ExportCallback callback) {
+    public void exportInBackground(Path basePath, FrameSet frameSet, int frameNumber, ExportCallback callback, final String exportDate) {
         this.executor.execute(() -> {
-            exportFrameSet(basePath, frameSet, frameNumber);
+            exportFrameSet(basePath, frameSet, frameNumber, exportDate);
             callback.onComplete();
         });
     }
 
-    public void exportFrameSet(Path basePath, final FrameSet frameSet, final int frameNumber) {
-        Path dir = Paths.get(basePath.toString(), this.exportDate);
+    public void exportFrameSet(Path basePath, final FrameSet frameSet, final int frameNumber, final String exportDate) {
+        Path dir = Paths.get(basePath.toString());
         Path path = this.getExportPathPath(dir, frameNumber);
         Log.d("Export", path.toString());
 
@@ -71,7 +70,7 @@ public class FrameExporter {
     }
 
     private Path getExportPathPath(Path basePath, int frameNumber) {
-        return Paths.get(basePath.toString(), frameNumber * 90 + ".ply");
+        return Paths.get(basePath.toString(), frameNumber*90 + ".ply");
     }
 
 }

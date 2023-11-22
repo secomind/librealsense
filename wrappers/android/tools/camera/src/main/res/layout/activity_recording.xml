@@ -31,5 +31,4 @@
         android:clickable="true"
         android:backgroundTint="#000000"
         app:srcCompat="@android:drawable/ic_media_pause" />
-
 </RelativeLayout>
